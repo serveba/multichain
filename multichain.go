@@ -60,9 +60,9 @@ const (
 	ETH  = Asset("ETH")  // Ether
 	FIL  = Asset("FIL")  // Filecoin
 	FTM  = Asset("FTM")  // Fantom
-	SOL  = Asset("SOL")  // Solana
 	LUNA = Asset("LUNA") // Luna
 	ONE  = Asset("ONE")  // Harmony
+	SOL  = Asset("SOL")  // Solana
 	ZEC  = Asset("ZEC")  // Zcash
 )
 
