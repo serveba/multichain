@@ -3,6 +3,7 @@ package harmony
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/json"
 	"fmt"
 	"math/big"
 
@@ -133,9 +134,24 @@ type Client struct {
 //
 // Implementation Note:
 // For the Client interface, the Tx method is simply a getTransactionByHash RPC call
-func (Client) Tx(context.Context, pack.Bytes) (Tx, pack.U64, error) {
-	// TODO
-	return Tx{}, pack.NewU64(0), nil
+func (Client) Tx(ctx context.Context, hash pack.Bytes) (Tx, pack.U64, error) {
+	// FIXME get hash from pack.Bytes func param
+	txHash := "0x41d6e74ff3a7e615080b98fcfb7bce8be7b1ba4a8671e1ba2e9527eb3e1da20d"
+	const method = "hmyv2_getTransactionByHash"
+	// FIXME get URL ctx func param
+	url := "https://rpc.s0.t.hmny.io"
+	data := []byte(fmt.Sprintf("[\"%s\"]", txHash))
+	response, err := SendData(method, data, url)
+
+	tx := parseGetTransactionByHashResult(*response.Result)
+	// TODO how confirmations work in harmony and how to retrieve it?
+	confirmations := pack.NewU64(1)
+
+	return Tx{
+		HarmonyTx: tx,
+		// FIXME
+		ChainID: big.NewInt(0),
+	}, confirmations, err
 }
 
 // SubmitTx to the underlying chain. If the transaction cannot be found
@@ -145,7 +161,35 @@ func (Client) Tx(context.Context, pack.Bytes) (Tx, pack.U64, error) {
 // Implementation note:
 // The SubmitTx method is not clear as to if it should block until confirmation of tx or not.
 // Since most APIs do not block on the submission of a transaction, we should implement it as such
-func (Client) SubmitTx(context.Context, Tx) error {
-	// TODO
-	return nil
+func (Client) SubmitTx(ctx context.Context, tx Tx) error {
+	const method = "hmyv2_sendRawTransaction"
+	// FIXME get URL ctx func param
+	url := "https://rpc.s0.t.hmny.io"
+	// FIXME get hash from pack.Bytes func param
+	txHash := "0x41d6e74ff3a7e615080b98fcfb7bce8be7b1ba4a8671e1ba2e9527eb3e1da20d"
+	data := []byte(fmt.Sprintf("[\"%s\"]", txHash))
+	_, err := SendData(method, data, url)
+	return err
+}
+
+func parseGetTransactionByHashResult(result json.RawMessage) types.Transaction {
+	type response struct {
+		Nonce     uint64          `json:"nonce"`
+		GasPrice  *big.Int        `json:"gasPrice"`
+		GasLimit  uint64          `json:"gas"`
+		ShardID   uint32          `json:"shardID"`
+		ToShardID uint32          `json:"toShardID"`
+		To        *common.Address `json:"to"`
+		From      *common.Address `json:"From"`
+		Value     *big.Int        `json:"value"`
+		Payload   []byte          `json:"input"`
+		V         *big.Int        `json:"v"`
+		R         *big.Int        `json:"r"`
+		S         *big.Int        `json:"s"`
+		Hash      *common.Hash    `json:"hash"`
+	}
+	var d response
+	json.Unmarshal(result, &d)
+
+	return *types.NewTransaction(d.Nonce, *d.To, d.ShardID, d.Value, d.GasLimit, d.GasPrice, d.Payload)
 }
